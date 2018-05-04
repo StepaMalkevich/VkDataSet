@@ -14,7 +14,7 @@ function get_group_members($group_id)
     $request_params = [
         'group_id' => $group_id,
         'offset' => 0,
-        'count' => 3,
+        'count' => 1000,
         'access_token' => $access_token,
         'version' => '5.74'
     ];
@@ -22,6 +22,7 @@ function get_group_members($group_id)
     $url = 'https://api.vk.com/method/groups.getMembers?' . http_build_query($request_params);
 
     $repeat = true;
+    $attempts_cnt = 0;
 
     do {
         $result = file_get_contents($url);
@@ -35,12 +36,18 @@ function get_group_members($group_id)
             sleep(1);
         }
 
-    } while ($repeat == true);
+        $attempts_cnt += 1;
+
+    } while ($repeat == true and $attempts_cnt < 10);
+
+    if ($attempts_cnt == 10){
+        echo "attempts is $attempts_cnt !!!\n";
+    }
 
     return $users;
 }
 
-$alphas = range('a', 'b');
+$alphas = range('a', 'f');
 $user_item_matrix = array();
 
 foreach ($alphas as &$value) {
@@ -50,7 +57,7 @@ foreach ($alphas as &$value) {
         'q' => $value,
         'type' => 'group',
         'offset' => 0,
-        'count' => 3,
+        'count' => 1000,
         'access_token' => $access_token,
         'version' => '5.74'
     ];
