@@ -5,3 +5,4 @@ composer.lock
 composer.phar
 local_work
 .idea/
+data
