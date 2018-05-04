@@ -6,7 +6,7 @@
  * Time: 18:06
  */
 
-$access_token = "";
+$access_token = "5335a4a9d393ac965a8f473fc8584873dcbd21c316e09b397427a87ec98a488f82372f28aff51044623f7";
 
 function get_group_members($group_id)
 {
@@ -37,19 +37,14 @@ function get_group_members($group_id)
 
     } while ($repeat == true);
 
-    if (is_null($users)) {
-        echo "never";
-        print_r($result);
-    }
     return $users;
 }
 
 $alphas = range('a', 'b');
-$global_matrix = array();
-$hashset = array();
+$user_item_matrix = array();
 
 foreach ($alphas as &$value) {
-    echo "\n Ключ: $value \n";
+    echo "\n Ключ поиска: $value \n";
 
     $request_params = [
         'q' => $value,
@@ -66,16 +61,12 @@ foreach ($alphas as &$value) {
 
     $result_obj = json_decode($result, true);
 
-    $i = 0;
-    $null_cnt = 0;
+    $q_cnt = 0;
     foreach ($result_obj['response'] as $group_obj) {
-        if ($i % 100 == 0) {
-            echo "i = $i \n";
-        }
-
         $group_id = $group_obj['gid'];
+        $group_ids = array_column($user_item_matrix, '0');
 
-        if (!array_key_exists($group_id, $hashset)) {
+        if (!array_key_exists($group_id,  $group_ids)) {
             $hashset[$group_id] = true;
 
             if (!is_null($group_id)) {
@@ -83,15 +74,15 @@ foreach ($alphas as &$value) {
 
                 array_unshift($users, $group_id, "<-g_id->users");
 
-                array_push($global_matrix, $users);
+                array_push($user_item_matrix, $users);
 
-                if ($i % 8 == 0) {
+                if ($q_cnt % 8 == 0) {
                     sleep(1);
                 }
             }
         }
 
-        $i += 1;
+        $q_cnt += 1;
     }
 
     unset($value);
@@ -100,6 +91,6 @@ foreach ($alphas as &$value) {
 
 $fp = fopen('../data/group_id_users.csv', 'w');
 
-foreach ($global_matrix as $fields) {
+foreach ($user_item_matrix as $fields) {
     fputcsv($fp, $fields);
 }
