@@ -7,6 +7,7 @@
  */
 
 $access_token = "";
+ini_set('memory_limit', '-1');
 
 function save_to_file($matrix, $filename)
 {
@@ -23,7 +24,7 @@ function get_group_members($group_id)
     $request_params = [
         'group_id' => $group_id,
         'offset' => 0,
-        'count' => 2,
+        'count' => 1000,
         'access_token' => $access_token,
         'version' => '5.74'
     ];
@@ -50,13 +51,13 @@ function get_group_members($group_id)
     } while ($repeat == true and $attempts_cnt < 10);
 
     if ($attempts_cnt == 10) {
-        echo "attempts is $attempts_cnt !!!\n";
+        echo "Warning: attempts count is $attempts_cnt !!!\n";
     }
 
     return $users;
 }
 
-$alphas = range('a', 'c');
+$alphas = range('a', 'z');
 $user_item_matrix = array();
 
 foreach ($alphas as &$value) {
@@ -66,7 +67,7 @@ foreach ($alphas as &$value) {
         'q' => $value,
         'type' => 'group',
         'offset' => 0,
-        'count' => 2,
+        'count' => 1000,
         'access_token' => $access_token,
         'version' => '5.74'
     ];
@@ -87,14 +88,18 @@ foreach ($alphas as &$value) {
             if (!is_null($group_id)) {
                 $users = get_group_members($group_id);
 
-                array_unshift($users, $group_id, "<-g_id-users->");
+                if (!is_null($users)) {
 
-                array_push($user_item_matrix, $users);
+                    array_unshift($users, $group_id, "<-g_id-users->");
 
+                    array_push($user_item_matrix, $users);
+
+                }
                 // значение 8 выкидыват error-6 не очень часто, подобрано эмпирически, но когда кидает, то repeat флаг в get_group_members это улавливает
                 if ($q_cnt % 8 == 0) {
                     sleep(1);
                 }
+
             }
         }
 
@@ -107,5 +112,5 @@ foreach ($alphas as &$value) {
 // ids of my groups, I will use them to test part to see
 $my_group_ids = [];
 
-$filename = '../data/group_id_users.csv';
+$filename = '../data/group_id_users_a_z.csv';
 save_to_file($user_item_matrix, $filename);
