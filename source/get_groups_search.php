@@ -19,7 +19,7 @@ function save_to_file($matrix, $filename)
     }
 }
 
-function generate_search_keys()
+function generate_search_keys($shuffling_cnt)
 {
     $alphas1 = range('a', 'z');
     $alphas2 = range('a', 'z');
@@ -27,7 +27,8 @@ function generate_search_keys()
     $search_keys = array();
 
     $i = 0;
-    foreach (range(0, 1) as $v) {
+    foreach (range(1, $shuffling_cnt) as $shuffle_time) {
+        echo "$shuffle_time shuffling.\n";
 
         shuffle($alphas1);
         shuffle($alphas2);
@@ -82,14 +83,14 @@ function get_group_members($group_id)
 }
 
 
-$search_keys = generate_search_keys();
+$search_keys = generate_search_keys(2);
 $user_item_matrix = array();
 
-foreach ($search_keys as &$value) {
-    echo "\n Ключ поиска: $value \n";
+foreach ($search_keys as $key) {
+    echo "\nSearch key: $key\n";
 
     $request_params = [
-        'q' => $value,
+        'q' => $key,
         'type' => 'group',
         'offset' => 0,
         'count' => 1000,
@@ -119,7 +120,7 @@ foreach ($search_keys as &$value) {
 
                     array_push($user_item_matrix, $users);
                 }
-                
+
                 // значение 8 выкидыват error-6 не очень часто, подобрано эмпирически, но когда кидает, то repeat флаг в get_group_members это улавливает
                 if ($q_cnt % 8 == 0) {
                     sleep(1);
@@ -130,8 +131,6 @@ foreach ($search_keys as &$value) {
 
         $q_cnt += 1;
     }
-
-    unset($value);
 }
 
 // ids of my groups, I will use them to test part to see
