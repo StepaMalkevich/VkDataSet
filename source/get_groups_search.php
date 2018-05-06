@@ -7,6 +7,7 @@
  */
 
 $access_token = "";
+
 ini_set('memory_limit', '-1');
 
 function save_to_file($matrix, $filename)
@@ -16,6 +17,29 @@ function save_to_file($matrix, $filename)
     foreach ($matrix as $fields) {
         fputcsv($fp, $fields);
     }
+}
+
+function generate_search_keys()
+{
+    $alphas1 = range('a', 'z');
+    $alphas2 = range('a', 'z');
+
+    $search_keys = array();
+
+    $i = 0;
+    foreach (range(0, 1) as $v) {
+
+        shuffle($alphas1);
+        shuffle($alphas2);
+
+        foreach (array_keys($alphas1 + $alphas2) as $j) {
+            $search_keys[$i] = $alphas1[$j] . $alphas2[$j];
+            $i += 1;
+        }
+
+    }
+
+    return $search_keys;
 }
 
 function get_group_members($group_id)
@@ -51,16 +75,17 @@ function get_group_members($group_id)
     } while ($repeat == true and $attempts_cnt < 10);
 
     if ($attempts_cnt == 10) {
-        echo "Warning: attempts count is $attempts_cnt !!!\n";
+        echo "Warning: attempts count is $attempts_cnt, group_id = $group_id skipped!!!\n";
     }
 
     return $users;
 }
 
-$alphas = range('a', 'z');
+
+$search_keys = generate_search_keys();
 $user_item_matrix = array();
 
-foreach ($alphas as &$value) {
+foreach ($search_keys as &$value) {
     echo "\n Ключ поиска: $value \n";
 
     $request_params = [
@@ -93,8 +118,8 @@ foreach ($alphas as &$value) {
                     array_unshift($users, $group_id, "<-g_id-users->");
 
                     array_push($user_item_matrix, $users);
-
                 }
+                
                 // значение 8 выкидыват error-6 не очень часто, подобрано эмпирически, но когда кидает, то repeat флаг в get_group_members это улавливает
                 if ($q_cnt % 8 == 0) {
                     sleep(1);
@@ -112,5 +137,5 @@ foreach ($alphas as &$value) {
 // ids of my groups, I will use them to test part to see
 $my_group_ids = [];
 
-$filename = '../data/group_id_users_a_z.csv';
+$filename = '../data/group_id_users_generated_2.csv';
 save_to_file($user_item_matrix, $filename);
