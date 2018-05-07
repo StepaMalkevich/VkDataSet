@@ -16,11 +16,8 @@ require_once('../src/VK/VKException.php');
 
 use VK\VK;
 
-function getMembers25k($group_id, $membersGroups, $len, $vk)
+function getMembersWithExecute($group_id, $membersGroups, $len, $vk)
 {
-    require_once('../src/VK/VK.php');
-    require_once('../src/VK/VKException.php');
-
     $code = 'var members = API.groups.getMembers({"group_id": ' . $group_id . ', "v": "5.74", "count": "1000", "offset": ' . count($membersGroups) . '}).items;'
         . 'var offset = 1000;'
         . 'while (offset < 25000 && (offset + ' . count($membersGroups) . ') < ' . $len . ')'
@@ -30,22 +27,34 @@ function getMembers25k($group_id, $membersGroups, $len, $vk)
         . '};'
         . 'return members;';
 
-    $data = $vk->api("execute", array('code' => $code));
+    $repeat = true;
+    $attempts_cnt = 0;
+    do {
+        $data = $vk->api("execute", array('code' => $code));
 
-    if ($data['response']) {
-        $array = explode(',', $data['response']);
-        $membersGroups = array_merge($membersGroups, $array);
+        if ($data['response']) {
+            $array = explode(',', $data['response']);
+            $membersGroups = array_merge($membersGroups, $array);
 
-        if ($len > count($membersGroups)) {
-            sleep(rand(0, 1));
-            getMembers25k($group_id, $membersGroups, $len, $vk);
+            if ($len > count($membersGroups)) {
+                sleep(1);
+                getMembersWithExecute($group_id, $membersGroups, $len, $vk);
+            } else {
+                return $membersGroups;
+            }
+
+            $repeat = false;
         } else {
-            return $membersGroups;
+            sleep(1);
         }
-    }
 
-    echo "Error in request\n";
-    return array();
+        $attempts_cnt += 1;
+
+    } while ($repeat == true and $attempts_cnt < 5);
+
+    echo "Error in request with attempts_cnt $attempts_cnt\n";
+
+    return $membersGroups;
 }
 
 function save_to_file($matrix, $filename)
@@ -56,70 +65,6 @@ function save_to_file($matrix, $filename)
         fputcsv($fp, $fields);
     }
 }
-
-function get_group_members_by_offset($group_id, $offset, $limit)
-{
-    global $access_token;
-    $request_params = [
-        'group_id' => $group_id,
-        'offset' => $offset,
-        'count' => $limit,
-        'access_token' => $access_token,
-        'version' => '5.74'
-    ];
-
-    $url = 'https://api.vk.com/method/groups.getMembers?' . http_build_query($request_params);
-
-    $repeat = true;
-    $attempts_cnt = 0;
-
-    do {
-        $members_str = file_get_contents($url);
-        $members = json_decode($members_str, true);
-
-        $error = $members["error"];
-
-        if (is_null($error)) {
-            $repeat = false;
-        } else {
-            sleep(1);
-        }
-
-        $attempts_cnt += 1;
-
-    } while ($repeat == true and $attempts_cnt < 5);
-
-    if ($attempts_cnt == 5) {
-        echo "Warning: attempts count is $attempts_cnt, group_id = $group_id skipped!!!\n";
-    }
-
-    return $members;
-}
-
-function get_all_group_members($group_id)
-{
-    $page = 0;
-    $limit = 1000;
-    $group_members = array();
-
-    do {
-        $offset = $page * $limit;
-        $offset_members = get_group_members_by_offset($group_id, $offset, $limit);
-        $offset_users = $offset_members["response"]["users"];
-        array_push($group_members, ...$offset_users);
-
-        $page++;
-
-        // значение 8 выкидыват error-6 не очень часто, подобрано эмпирически, но когда кидает, то repeat флаг в get_group_members это улавливает
-        if ($page % 8 == 0) {
-            sleep(1);
-        }
-
-    } while ($offset_members["response"]["count"] > $offset + $limit and $page < 10);
-
-    return $group_members;
-}
-
 
 $search_keys = range('a', 'b');
 $user_item_matrix = array();
@@ -139,11 +84,6 @@ $vk->setApiVersion('5.74');
 
 echo "VK object created\n";
 
-//$membersGroups = array();
-//$group_id = '1';
-//$membersGroups = getMembers25k($group_id, $membersGroups, 20000, $vk);
-//print_r($membersGroups);
-
 foreach ($search_keys as $key) {
     $start = microtime(true);
     echo "\nSearch key: $key\n";
@@ -152,7 +92,7 @@ foreach ($search_keys as $key) {
         'q' => $key,
         'type' => 'group',
         'offset' => 0,
-        'count' => 2,
+        'count' => 100,
         'access_token' => $access_token,
         'version' => '5.74'
     ];
@@ -167,14 +107,13 @@ foreach ($search_keys as $key) {
 
         $group_id = $group_obj['gid'];
 
-        echo "$group_id\n";
         $group_ids = array_column($user_item_matrix, '0');
 
         if (!in_array($group_id, $group_ids)) {
 
             if (!is_null($group_id)) {
                 $membersGroups = array();
-                $members = getMembers25k($group_id, $membersGroups, 20000, $vk);
+                $members = getMembersWithExecute($group_id, $membersGroups, 2000, $vk);
 
                 if (!is_null($members)) {
 
@@ -191,8 +130,5 @@ foreach ($search_keys as $key) {
     echo "Execution time of key $key is equals to $time_elapsed_secs sec\n";
 }
 
-
-print_r($user_item_matrix);
-
-//$filename = '../data/group_id_users_offset_a_b.csv';
-//save_to_file($user_item_matrix, $filename);
+$filename = '../data/group_id_users_execute_a_b.csv';
+save_to_file($user_item_matrix, $filename);
